@@ -1,0 +1,124 @@
+From 2dc0c60e78723599198219c9148ab017f2b9599f Mon Sep 17 00:00:00 2001
+From: Diego Carvalho <737003+zyhazz@users.noreply.github.com>
+Date: Wed, 30 Sep 2026 07:59:03 -0300
+Subject: [PATCH 02/11] Add halium.config fragment and fix overlayfs RKP build
+
+- arm64/configs/halium.config: systemd/LXC/Halium requirements, v1
+  cgroups, Waydroid binder nodes, bluebinder (vhci), no paranoid network
+- overlayfs: declare rkp_set_mnt_flags like fs/pnode.c does; it was
+  only built with RKP_NS_PROT and OVERLAY_FS both enabled
+---
+ arch/arm64/configs/halium.config      | 74 +++++++++++++++++++++++++++
+ fs/overlayfs/super.c                  |  4 ++
+ security/samsung/defex_lsm/.gitignore |  3 ++
+ 3 files changed, 81 insertions(+)
+ create mode 100644 arch/arm64/configs/halium.config
+ create mode 100644 security/samsung/defex_lsm/.gitignore
+
+diff --git a/arch/arm64/configs/halium.config b/arch/arm64/configs/halium.config
+new file mode 100644
+index 000000000..6c2dd03a9
+--- /dev/null
++++ b/arch/arm64/configs/halium.config
+@@ -0,0 +1,74 @@
++# Halium 11 / Ubuntu Touch fragment for gta3xlwifi (SM-T510).
++# Merged on top of exynos7885-gta3xlwifi_defconfig.
++
++# --- systemd / Halium mandatory ---
++CONFIG_SYSVIPC=y
++CONFIG_IPC_NS=y
++CONFIG_PID_NS=y
++CONFIG_NET_NS=y
++CONFIG_UTS_NS=y
++CONFIG_USER_NS=y
++CONFIG_VT=y
++CONFIG_FHANDLE=y
++CONFIG_DEVTMPFS=y
++CONFIG_AUTOFS4_FS=y
++CONFIG_FANOTIFY=y
++CONFIG_TMPFS_POSIX_ACL=y
++CONFIG_TMPFS_XATTR=y
++CONFIG_SECCOMP=y
++CONFIG_IKCONFIG_PROC=y
++# POSIX_MQUEUE is reported to bootloop Exynos Samsung kernels; keep off
++# CONFIG_POSIX_MQUEUE is not set
++# fbcon crashes against Samsung decon
++# CONFIG_FRAMEBUFFER_CONSOLE is not set
++# Firmware requests must not wait 60s for a userspace helper
++# (USER_HELPER itself is selected by Samsung drivers)
++# CONFIG_FW_LOADER_USER_HELPER_FALLBACK is not set
++# Only group inet may open sockets with this on; breaks Linux userspace
++# CONFIG_ANDROID_PARANOID_NETWORK is not set
++
++# --- cgroups (v1 hierarchy, see CMDLINE) ---
++CONFIG_CGROUP_DEVICE=y
++CONFIG_CGROUP_PIDS=y
++CONFIG_CGROUP_FREEZER=y
++CONFIG_CGROUP_CPUACCT=y
++CONFIG_CGROUP_SCHED=y
++CONFIG_BLK_CGROUP=y
++CONFIG_MEMCG=y
++CONFIG_MEMCG_SWAP=y
++# Samsung sched code (sched.h rt_rq/my_q) requires RT_GROUP_SCHED
++CONFIG_RT_GROUP_SCHED=y
++
++# --- LXC container networking ---
++CONFIG_VETH=y
++CONFIG_BRIDGE=y
++CONFIG_BRIDGE_NETFILTER=y
++CONFIG_MACVLAN=y
++CONFIG_TUN=y
++CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y
++CONFIG_NETFILTER_XT_MATCH_OWNER=y
++CONFIG_NETFILTER_XT_TARGET_CHECKSUM=y
++CONFIG_IP_NF_TARGET_MASQUERADE=y
++CONFIG_IP6_NF_TARGET_MASQUERADE=y
++
++# --- rootfs.img on /data ---
++CONFIG_BLK_DEV_LOOP=y
++CONFIG_BLK_DEV_LOOP_MIN_COUNT=32
++CONFIG_SQUASHFS=y
++CONFIG_OVERLAY_FS=y
++
++# --- Bluetooth via bluebinder (vendor HAL -> vhci) ---
++CONFIG_BT=y
++CONFIG_BT_HCIVHCI=y
++CONFIG_RFKILL=y
++CONFIG_UHID=y
++
++# --- Waydroid: no binderfs on 4.4, so create its nodes statically ---
++CONFIG_ANDROID_BINDER_DEVICES="binder,hwbinder,vndbinder,anbox-binder,anbox-hwbinder,anbox-vndbinder"
++
++# --- cmdline: S-Boot uses DT bootargs, append ours ---
++CONFIG_CMDLINE="systemd.unified_cgroup_hierarchy=0 loop.max_part=7"
++CONFIG_CMDLINE_EXTEND=y
++
++# Stable uname -r for module paths
++# CONFIG_LOCALVERSION_AUTO is not set
+diff --git a/fs/overlayfs/super.c b/fs/overlayfs/super.c
+index c874535db..e2f394089 100644
+--- a/fs/overlayfs/super.c
++++ b/fs/overlayfs/super.c
+@@ -21,6 +21,10 @@
+ #include <linux/seq_file.h>
+ #include "overlayfs.h"
+ 
++#ifdef CONFIG_RKP_NS_PROT
++void rkp_set_mnt_flags(struct vfsmount *mnt, int flags);
++#endif
++
+ MODULE_AUTHOR("Miklos Szeredi <miklos@szeredi.hu>");
+ MODULE_DESCRIPTION("Overlay filesystem");
+ MODULE_LICENSE("GPL");
+diff --git a/security/samsung/defex_lsm/.gitignore b/security/samsung/defex_lsm/.gitignore
+new file mode 100644
+index 000000000..cdb281011
+--- /dev/null
++++ b/security/samsung/defex_lsm/.gitignore
+@@ -0,0 +1,3 @@
++defex_packed_rules.bin
++defex_packed_rules.inc
++pack_rules
+-- 
+2.43.0
+

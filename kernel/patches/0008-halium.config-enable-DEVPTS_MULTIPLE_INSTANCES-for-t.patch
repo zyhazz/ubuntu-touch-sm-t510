@@ -1,0 +1,28 @@
+From 6929713ebd615e29f321fa5c4fae481dbace8000 Mon Sep 17 00:00:00 2001
+From: Diego Carvalho <737003+zyhazz@users.noreply.github.com>
+Date: Wed, 30 Sep 2026 11:09:32 -0300
+Subject: [PATCH 08/11] halium.config: enable DEVPTS_MULTIPLE_INSTANCES for the
+ LXC container
+
+lxc-start failed in lxc_setup_devpts_child ('Failed to bind mount
+/dev/pts/ptmx to /dev/ptmx'), so the Android container never started.
+---
+ arch/arm64/configs/halium.config | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/arch/arm64/configs/halium.config b/arch/arm64/configs/halium.config
+index 576ca48b0..7001525e2 100644
+--- a/arch/arm64/configs/halium.config
++++ b/arch/arm64/configs/halium.config
+@@ -16,6 +16,8 @@ CONFIG_FANOTIFY=y
+ CONFIG_TMPFS_POSIX_ACL=y
+ CONFIG_TMPFS_XATTR=y
+ CONFIG_SECCOMP=y
++# LXC gives the Android container its own devpts (4.4 still needs this)
++CONFIG_DEVPTS_MULTIPLE_INSTANCES=y
+ CONFIG_IKCONFIG_PROC=y
+ # POSIX_MQUEUE is reported to bootloop Exynos Samsung kernels; keep off
+ # CONFIG_POSIX_MQUEUE is not set
+-- 
+2.43.0
+

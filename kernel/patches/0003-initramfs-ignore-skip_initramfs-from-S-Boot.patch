@@ -1,0 +1,34 @@
+From e7c3f514acdda70e47351f6d6a96f699207720e9 Mon Sep 17 00:00:00 2001
+From: Diego Carvalho <737003+zyhazz@users.noreply.github.com>
+Date: Wed, 30 Sep 2026 08:00:12 -0300
+Subject: [PATCH 03/11] initramfs: ignore skip_initramfs from S-Boot
+
+The DT bootargs of this system-as-root device carry skip_initramfs on
+every normal boot. Halium needs its ramdisk from boot.img to run.
+---
+ init/initramfs.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/init/initramfs.c b/init/initramfs.c
+index 52059169f..e6d824a04 100644
+--- a/init/initramfs.c
++++ b/init/initramfs.c
+@@ -610,9 +610,14 @@ static int __initdata do_skip_initramfs;
+ 
+ static int __init skip_initramfs_param(char *str)
+ {
++	/*
++	 * S-Boot appends skip_initramfs on every normal boot of this
++	 * system-as-root device. Halium boots from the boot.img ramdisk,
++	 * so accept the parameter but never act on it.
++	 */
+ 	if (*str)
+ 		return 0;
+-	do_skip_initramfs = 1;
++	pr_info("initramfs: ignoring skip_initramfs\n");
+ 	return 1;
+ }
+ __setup("skip_initramfs", skip_initramfs_param);
+-- 
+2.43.0
+

@@ -1,8 +1,8 @@
-#!/home/diego/dev/sm_t510_ubuntu_touch/.venv/bin/python3
+#!/usr/bin/env python3
 """Run a command on the tablet over SSH as root (key auth): ush 'cmd' [user]."""
 import os, sys, paramiko
-host, user = os.environ.get("T510_HOST", "172.16.3.105"), (sys.argv[2] if len(sys.argv) > 2 else "root")
-key = os.path.join(os.path.dirname(__file__), "..", "keys", "t510_ed25519")
+host, user = os.environ.get("T510_HOST", "10.15.19.82"), (sys.argv[2] if len(sys.argv) > 2 else "root")
+key = os.environ.get("T510_KEY", os.path.join(os.path.dirname(__file__), "..", "keys", "t510_ed25519"))
 c = paramiko.SSHClient()
 c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 c.connect(host, username=user, key_filename=key, timeout=15, allow_agent=False, look_for_keys=False)

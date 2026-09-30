@@ -1,0 +1,52 @@
+From 1da07e9db128ca85d98d9ecba238e5f2f9a4bae9 Mon Sep 17 00:00:00 2001
+From: Diego Carvalho <737003+zyhazz@users.noreply.github.com>
+Date: Wed, 30 Sep 2026 12:39:07 -0300
+Subject: [PATCH 09/11] mmc: srpmb: handle ERR_PTR from blkdev_get_by_path, try
+ Linux path
+
+blkdev_get_by_path() returns an ERR_PTR, not NULL. Under Halium the host
+/dev has no /dev/block/mmcblk0rpmb, so the lookup failed with -ENOENT
+and bdev->bd_disk was read from ERR_PTR(-2): oops at 0x96 in
+mmc_rpmb_access as soon as the TEE's secure storage started (bootloop).
+Fall back to /dev/mmcblk0rpmb and fail cleanly otherwise.
+---
+ drivers/mmc/host/dw_mmc-srpmb.c | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/mmc/host/dw_mmc-srpmb.c b/drivers/mmc/host/dw_mmc-srpmb.c
+index bd1c56dc1..df2576ed1 100644
+--- a/drivers/mmc/host/dw_mmc-srpmb.c
++++ b/drivers/mmc/host/dw_mmc-srpmb.c
+@@ -30,6 +30,7 @@
+ 
+ #define MMC_SRPMB_DEVICE_PROPNAME	"samsung,mmc-srpmb"
+ #define MMC_BLOCK_NAME			"/dev/block/mmcblk0rpmb"
++#define MMC_BLOCK_NAME_LINUX		"/dev/mmcblk0rpmb"
+ 
+ #if defined(DEBUG_SRPMB)
+ static void dump_packet(u8 *data, int len)
+@@ -99,8 +100,19 @@ static int mmc_rpmb_access(struct _mmc_rpmb_ctx *ctx, struct _mmc_rpmb_req *req)
+ 	if (bdev == NULL) {
+ 		bdev = blkdev_get_by_path(MMC_BLOCK_NAME,
+ 				FMODE_READ|FMODE_WRITE, NULL);
+-		if (!bdev) {
+-			dev_err(dev, "Fail to get block device for mmc srpmb\n");
++		/*
++		 * The path is resolved in the host's mount namespace. Android
++		 * has /dev/block/mmcblk0rpmb; a plain Linux udev /dev (Halium)
++		 * only has /dev/mmcblk0rpmb. The lookup returns an ERR_PTR,
++		 * never NULL, which used to be dereferenced right below.
++		 */
++		if (IS_ERR_OR_NULL(bdev))
++			bdev = blkdev_get_by_path(MMC_BLOCK_NAME_LINUX,
++					FMODE_READ|FMODE_WRITE, NULL);
++		if (IS_ERR_OR_NULL(bdev)) {
++			dev_err(dev, "Fail to get block device for mmc srpmb: %ld\n",
++				PTR_ERR(bdev));
++			bdev = NULL;
+ 			return -EINVAL;
+ 		}
+ 
+-- 
+2.43.0
+

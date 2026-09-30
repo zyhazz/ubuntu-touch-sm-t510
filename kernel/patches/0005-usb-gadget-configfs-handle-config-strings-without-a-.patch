@@ -1,0 +1,35 @@
+From c08c1add309a2e3321c81fb152962ed4fa075aca Mon Sep 17 00:00:00 2001
+From: Diego Carvalho <737003+zyhazz@users.noreply.github.com>
+Date: Wed, 30 Sep 2026 10:41:10 -0300
+Subject: [PATCH 05/11] usb: gadget: configfs: handle config strings without a
+ configuration
+
+usb-moded (Ubuntu Touch) creates configs/b.1/strings/0x409 and links
+functions before writing 'configuration', so cn->configuration is NULL
+and is_symboliclink_change_mode() oopses in strcmp. With oops=panic from
+S-Boot this bootlooped the device right after systemd started.
+---
+ drivers/usb/gadget/configfs.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/usb/gadget/configfs.c b/drivers/usb/gadget/configfs.c
+index 83cbae2d1..117b22ef6 100644
+--- a/drivers/usb/gadget/configfs.c
++++ b/drivers/usb/gadget/configfs.c
+@@ -574,7 +574,12 @@ static bool is_symboliclink_change_mode (struct config_usb_cfg *cfg)
+ 
+ 	if (!list_empty(&cfg->string_list)) {
+ 		list_for_each_entry(cn, &cfg->string_list, list) {
+-			if (strcmp(cn->configuration, "Conf 1") != 0)
++			/*
++			 * configuration is NULL until userspace writes it;
++			 * usb-moded links functions before doing so.
++			 */
++			if (cn->configuration &&
++			    strcmp(cn->configuration, "Conf 1") != 0)
+ 				return true;
+ 		}
+ 	}
+-- 
+2.43.0
+

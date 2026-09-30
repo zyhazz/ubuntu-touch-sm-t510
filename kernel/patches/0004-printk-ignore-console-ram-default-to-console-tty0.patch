@@ -1,0 +1,50 @@
+From fc03636ebeeac558022c3fd2e753c69db7dd23ba Mon Sep 17 00:00:00 2001
+From: Diego Carvalho <737003+zyhazz@users.noreply.github.com>
+Date: Wed, 30 Sep 2026 10:36:05 -0300
+Subject: [PATCH 04/11] printk: ignore console=ram, default to console=tty0
+
+S-Boot passes console=ram, which no driver provides. As the preferred
+console it leaves /dev/console with no device, so the Halium initramfs
+fails in run-init ('opening console: No such device') and drops to its
+telnet panic shell. Add console=tty0 to CONFIG_CMDLINE as well.
+---
+ arch/arm64/configs/halium.config | 2 +-
+ kernel/printk/printk.c           | 9 +++++++++
+ 2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm64/configs/halium.config b/arch/arm64/configs/halium.config
+index 6c2dd03a9..576ca48b0 100644
+--- a/arch/arm64/configs/halium.config
++++ b/arch/arm64/configs/halium.config
+@@ -67,7 +67,7 @@ CONFIG_UHID=y
+ CONFIG_ANDROID_BINDER_DEVICES="binder,hwbinder,vndbinder,anbox-binder,anbox-hwbinder,anbox-vndbinder"
+ 
+ # --- cmdline: S-Boot uses DT bootargs, append ours ---
+-CONFIG_CMDLINE="systemd.unified_cgroup_hierarchy=0 loop.max_part=7"
++CONFIG_CMDLINE="console=tty0 systemd.unified_cgroup_hierarchy=0 loop.max_part=7"
+ CONFIG_CMDLINE_EXTEND=y
+ 
+ # Stable uname -r for module paths
+diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
+index 767605f02..d3560e41a 100644
+--- a/kernel/printk/printk.c
++++ b/kernel/printk/printk.c
+@@ -2232,6 +2232,15 @@ static int __init console_setup(char *str)
+ 	if (_braille_console_setup(&str, &brl_options))
+ 		return 1;
+ 
++	/*
++	 * S-Boot passes console=ram, for which no console driver exists.
++	 * Registering it as the preferred console leaves /dev/console
++	 * without a device (ENODEV), and the initramfs cannot hand over
++	 * to init. Ignore it so console=tty0 from CONFIG_CMDLINE applies.
++	 */
++	if (!strcmp(str, "ram"))
++		return 1;
++
+ 	/*
+ 	 * Decode str into name, index, options.
+ 	 */
+-- 
+2.43.0
+

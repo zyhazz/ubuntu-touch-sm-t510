@@ -1,6 +1,6 @@
 # Ubuntu Touch installer for the Samsung Galaxy Tab A 10.1 (2019), SM-T510.
 # Sourced by update-binary; ui_print/abort/ZIP/TMP come from there.
-# Writes exactly two things: the boot partition and /data/rootfs.img.
+# Writes the boot partition, /data/rootfs.img and /data/android-rootfs.img.
 
 ui_print " "
 ui_print "=============================================="
@@ -40,8 +40,10 @@ manifest_get() {
 }
 BOOT_SHA=$(sum_of boot.img)
 ROOTFS_SHA=$(sum_of rootfs.img)
-[ -n "$BOOT_SHA" ] && [ -n "$ROOTFS_SHA" ] || abort "SHA256SUMS is missing an entry"
+ANDROID_SHA=$(sum_of android-rootfs.img)
+[ -n "$BOOT_SHA" ] && [ -n "$ROOTFS_SHA" ] && [ -n "$ANDROID_SHA" ] || abort "SHA256SUMS is missing an entry"
 while read -r line; do ui_print "  $line"; done < "$TMP/install/manifest.txt"
+VARIANT=$(manifest_get variant)
 ui_print " "
 
 mount /data >/dev/null 2>&1
@@ -52,7 +54,7 @@ if [ -d /data/system/users ] || [ -e /data/system/packages.xml ]; then
 fi
 set -- $(df -k /data | tail -1)
 free_kb=$4
-need_kb=$(( $(manifest_get rootfs_bytes) / 1024 ))
+need_kb=$(( ($(manifest_get rootfs_bytes) + $(manifest_get android_rootfs_bytes)) / 1024 ))
 [ "$free_kb" -gt $((need_kb + 262144)) ] || abort "/data has ${free_kb}K free, need ${need_kb}K"
 
 ui_print "Writing boot..."
@@ -78,13 +80,24 @@ ui_print "  hashing..."
 back=$(sha256sum /data/rootfs.img | first_field)
 [ "$back" = "$ROOTFS_SHA" ] || abort "rootfs.img on /data does NOT match (full or failing /data?)"
 ui_print "  rootfs verified"
-: > /data/.force-ssh
+
+ui_print " "
+ui_print "Writing /data/android-rootfs.img (Halium GSI)..."
+rm -f /data/android-rootfs.img
+unzip -p "$ZIP" install/android-rootfs.img.gz | gzip -dc > /data/android-rootfs.img || abort "could not write /data/android-rootfs.img"
+sync
+back=$(sha256sum /data/android-rootfs.img | first_field)
+[ "$back" = "$ANDROID_SHA" ] || abort "android-rootfs.img on /data does NOT match"
+ui_print "  android-rootfs verified"
+[ "$VARIANT" = devel ] && : > /data/.force-ssh
 sync
 rm -rf "$TMP"
 
 ui_print " "
 ui_print "Done. Reboot > System. First boot takes a few minutes."
-ui_print "Debug image: SSH on, root/phablet password 1234."
-ui_print "  USB:  ssh phablet@10.15.19.82   or   adb shell"
+if [ "$VARIANT" = devel ]; then
+    ui_print "DEBUG image: SSH on, root/phablet password 1234."
+    ui_print "  USB:  ssh phablet@10.15.19.82   or   adb shell"
+fi
 ui_print "If it hangs at boot, plug USB and: telnet 192.168.2.15"
 ui_print " "

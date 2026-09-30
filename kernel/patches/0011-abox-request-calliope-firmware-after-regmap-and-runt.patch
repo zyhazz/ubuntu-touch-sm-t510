@@ -1,0 +1,59 @@
+From 41838936886c5000cb75e5913784ea0941d61f8b Mon Sep 17 00:00:00 2001
+From: Diego Carvalho <737003+zyhazz@users.noreply.github.com>
+Date: Wed, 30 Sep 2026 15:58:38 -0300
+Subject: [PATCH 11/11] abox: request calliope firmware after regmap and
+ runtime PM are set up
+
+The async completion calls abox_enable() -> regcache_cache_only() on
+data->regmap. It was requested before the regmap existed; harmless while
+the firmware came from the rootfs seconds later, but with it built into
+the kernel the callback runs at once and oopsed (seen on a charger boot
+at 2.6s, panic + reboot).
+---
+ sound/soc/samsung/abox/abox.c | 23 +++++++++++++++--------
+ 1 file changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/sound/soc/samsung/abox/abox.c b/sound/soc/samsung/abox/abox.c
+index cff1d4487..f2e5210ab 100644
+--- a/sound/soc/samsung/abox/abox.c
++++ b/sound/soc/samsung/abox/abox.c
+@@ -5885,14 +5885,6 @@ static int samsung_abox_probe(struct platform_device *pdev)
+ 	dev_info(dev, "bootargs[0x%x][%s]\n",
+ 				data->bootargs_offset, data->bootargs);
+ 
+-	request_firmware_nowait(THIS_MODULE,
+-			FW_ACTION_HOTPLUG,
+-			"calliope_sram.bin",
+-			dev,
+-			GFP_KERNEL,
+-			pdev,
+-			abox_complete_sram_firmware_request);
+-
+ #ifdef EMULATOR
+ 	pmu_alive = ioremap(0x11C80000, 0x10000);
+ #endif
+@@ -5918,6 +5910,21 @@ static int samsung_abox_probe(struct platform_device *pdev)
+ 	data->pm_nb.notifier_call = abox_pm_notifier;
+ 	register_pm_notifier(&data->pm_nb);
+ 
++	/*
++	 * Request the firmware only now: its completion handler calls
++	 * abox_enable() while runtime PM is still disabled, which touches
++	 * data->regmap. With the firmware built into the kernel
++	 * (CONFIG_EXTRA_FIRMWARE) the callback runs immediately, and asking
++	 * before the regmap existed oopsed in regcache_cache_only().
++	 */
++	request_firmware_nowait(THIS_MODULE,
++			FW_ACTION_HOTPLUG,
++			"calliope_sram.bin",
++			dev,
++			GFP_KERNEL,
++			pdev,
++			abox_complete_sram_firmware_request);
++
+ 	data->modem_nb.notifier_call = abox_modem_notifier;
+ 
+ 	data->itmon_nb.notifier_call = abox_itmon_notifier;
+-- 
+2.43.0
+

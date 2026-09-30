@@ -1,8 +1,11 @@
+# downloads, proprietary Samsung firmware, build output, local tools
 /firmware/
 /downloads/
 /out/
 /toolchains/
 /tools/
 /src/
+/logs/
+/notes/
 /.venv/
 /keys/

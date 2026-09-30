@@ -1,0 +1,45 @@
+From 941f3ca5c16780973049cfc16620054653aaeaa5 Mon Sep 17 00:00:00 2001
+From: Diego Carvalho <737003+zyhazz@users.noreply.github.com>
+Date: Wed, 30 Sep 2026 11:00:17 -0300
+Subject: [PATCH 07/11] mmc: dw_mmc: make eMMC command queueing opt-in
+ (dw_mmc.cmdq=1)
+
+A userdata read stayed in flight forever with CMDQ enabled (inflight=1
+for 400s+), so the Halium initramfs could not find userdata and panicked.
+Disable CMDQ by default; the DT still asks for it via support-cmdq.
+---
+ drivers/mmc/host/dw_mmc.c | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/mmc/host/dw_mmc.c b/drivers/mmc/host/dw_mmc.c
+index 74585b85d..0ad8cf0a3 100644
+--- a/drivers/mmc/host/dw_mmc.c
++++ b/drivers/mmc/host/dw_mmc.c
+@@ -47,6 +47,15 @@
+ #endif
+ 
+ #include "dw_mmc.h"
++
++/*
++ * eMMC command queueing hung userdata reads for good on this device
++ * (one request in flight forever, initramfs never finds userdata).
++ * Off by default; dw_mmc.cmdq=1 on the cmdline turns it back on.
++ */
++static bool dw_mci_cmdq_enable;
++module_param_named(cmdq, dw_mci_cmdq_enable, bool, 0444);
++MODULE_PARM_DESC(cmdq, "Enable eMMC command queueing (default: off)");
+ #include "dw_mmc-exynos.h"
+ #include "cmdq_hci.h"
+ 
+@@ -4328,7 +4337,7 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
+ 		pdata->caps2 |= MMC_CAP2_NO_PRESCAN_POWERUP;
+ 	}
+ 
+-	if (of_find_property(np, "support-cmdq", NULL))
++	if (of_find_property(np, "support-cmdq", NULL) && dw_mci_cmdq_enable)
+ 		pdata->caps2 |= MMC_CAP2_CMD_QUEUE;
+ 
+ 	return pdata;
+-- 
+2.43.0
+
