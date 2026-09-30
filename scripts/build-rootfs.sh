@@ -53,8 +53,9 @@ touch $MNT/.writable_image
 
 # PulseAudio: the API 30 droid module calls create_audio_patch, which the
 # 64-bit audio.hidl_compat bridge (HAL API 2.0) leaves unset (SIGBUS). The
-# API 28 module honours the HAL version.
-sed -i "s#^load-module module-droid-discover .*#load-module module-droid-card-28 voice_virtual_stream=true#" $MNT/etc/pulse/touch.pa
+# API 28 module honours the HAL version. rate=48000 matches the ABOX DSP;
+# at 44.1 kHz playback had an audible hiss.
+sed -i "s#^load-module module-droid-discover .*#load-module module-droid-card-28 voice_virtual_stream=true rate=48000#" $MNT/etc/pulse/touch.pa
 
 echo "I: devel access"
 mkdir -p $MNT/etc/ssh/sshd_config.d
