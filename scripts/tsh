@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+"""Run a command on the Halium initramfs telnet shell: tsh 'cmd' [host]."""
+import os, re, socket, sys, time
+host = sys.argv[2] if len(sys.argv) > 2 else "192.168.2.15"
+timeout = float(os.environ.get("TSH_TIMEOUT", "60"))
+s = socket.create_connection((host, 23), timeout=10)
+
+def read(until=None, t=1.0):
+    buf, end = b"", time.time() + t
+    while time.time() < end:
+        s.settimeout(0.3)
+        try:
+            d = s.recv(65536)
+        except socket.timeout:
+            continue
+        if not d:
+            break
+        buf += d
+        if until and until in buf:
+            break
+    return buf
+
+read(t=1.5)  # banner + telnet negotiation
+s.sendall(cmd.encode() if False else sys.argv[1].encode() + b'; echo "__T510_""DONE__"\r\n')
+out = read(b"__T510_DONE__", timeout).decode(errors="replace")
+out = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", out.replace("\r", ""))
+lines = out.split("\n")[1:]  # drop the echoed command line
+print("\n".join(l for l in lines if "__T510_DONE__" not in l).rstrip())
