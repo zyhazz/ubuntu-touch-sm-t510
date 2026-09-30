@@ -28,7 +28,16 @@ ui_print "boot      $BOOT_DEV ($boot_bytes bytes)"
 
 unzip -o "$ZIP" install/SHA256SUMS install/manifest.txt -d "$TMP" >/dev/null 2>&1
 [ -f "$TMP/install/SHA256SUMS" ] || abort "this zip has no SHA256SUMS"
-sum_of() { grep " \*\?$1\$" "$TMP/install/SHA256SUMS" | awk '{print $1}'; }
+# Only plain sh builtins here: TWRP's grep/awk are minimal.
+sum_of() {
+    while read -r h f; do
+        [ "$f" = "$1" ] || [ "$f" = "*$1" ] && { echo "$h"; return 0; }
+    done < "$TMP/install/SHA256SUMS"
+}
+first_field() { read -r x _ ; echo "$x"; }
+manifest_get() {
+    while IFS='=' read -r k v; do [ "$k" = "$1" ] && { echo "$v"; return 0; }; done < "$TMP/install/manifest.txt"
+}
 BOOT_SHA=$(sum_of boot.img)
 ROOTFS_SHA=$(sum_of rootfs.img)
 [ -n "$BOOT_SHA" ] && [ -n "$ROOTFS_SHA" ] || abort "SHA256SUMS is missing an entry"
@@ -41,20 +50,21 @@ grep -q " /data " /proc/mounts || abort "/data is not mounted.
 if [ -d /data/system/users ] || [ -e /data/system/packages.xml ]; then
     abort "/data still holds Android. Wipe > Format Data first."
 fi
-free_kb=$(df /data | tail -1 | awk '{print $4}')
-need_kb=$(( $(grep '^rootfs_bytes=' "$TMP/install/manifest.txt" | cut -d= -f2) / 1024 ))
+set -- $(df -k /data | tail -1)
+free_kb=$4
+need_kb=$(( $(manifest_get rootfs_bytes) / 1024 ))
 [ "$free_kb" -gt $((need_kb + 262144)) ] || abort "/data has ${free_kb}K free, need ${need_kb}K"
 
 ui_print "Writing boot..."
 unzip -o "$ZIP" install/boot.img -d "$TMP" >/dev/null 2>&1 || abort "no install/boot.img"
-got=$(sha256sum "$TMP/install/boot.img" | awk '{print $1}')
+got=$(sha256sum "$TMP/install/boot.img" | first_field)
 [ "$got" = "$BOOT_SHA" ] || abort "boot.img in the zip is corrupt"
-img_bytes=$(stat -c%s "$TMP/install/boot.img")
+img_bytes=$(wc -c < "$TMP/install/boot.img")
 [ "$img_bytes" -le "$boot_bytes" ] || abort "boot.img ($img_bytes) is larger than the partition"
 dd if="$TMP/install/boot.img" of="$BOOT_DEV" bs=1048576 >/dev/null 2>&1 || abort "dd to $BOOT_DEV failed"
 sync
 back=$(dd if="$BOOT_DEV" bs=512 count=$(( (img_bytes + 511) / 512 )) 2>/dev/null \
-       | head -c "$img_bytes" | sha256sum | awk '{print $1}')
+       | head -c "$img_bytes" | sha256sum | first_field)
 [ "$back" = "$BOOT_SHA" ] || abort "boot read-back does NOT match. DO NOT REBOOT; reflash boot."
 ui_print "  boot verified"
 rm -f "$TMP/install/boot.img"
@@ -65,7 +75,7 @@ rm -f /data/rootfs.img
 unzip -p "$ZIP" install/rootfs.img.gz | gzip -dc > /data/rootfs.img || abort "could not write /data/rootfs.img"
 sync
 ui_print "  hashing..."
-back=$(sha256sum /data/rootfs.img | awk '{print $1}')
+back=$(sha256sum /data/rootfs.img | first_field)
 [ "$back" = "$ROOTFS_SHA" ] || abort "rootfs.img on /data does NOT match (full or failing /data?)"
 ui_print "  rootfs verified"
 : > /data/.force-ssh
