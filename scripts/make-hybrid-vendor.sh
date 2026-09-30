@@ -18,6 +18,13 @@ mkdir -p /mnt/t /mnt/a
 mount -o loop $OUT /mnt/t
 mount -o loop,ro $A30 /mnt/a
 cp -a --preserve=all /mnt/a/lib64 /mnt/t/lib64
+# 64-bit executables that T510 vendor init rc files start once the system
+# reports an arm64 ABI. boringssl_self_test64 is critical: when it cannot
+# start, init reboots with boringssl-self-check-failed (container shutdown).
+for b in boringssl_self_test64 snap_utility_64; do
+  cp -a --preserve=all /mnt/a/bin/\$b /mnt/t/bin/\$b
+done
+ls -laZ /mnt/t/bin/boringssl_self_test* /mnt/t/bin/snap_utility*
 echo \"lib64 files: \$(find /mnt/t/lib64 -type f | wc -l)\"
 ls -laZ /mnt/t/lib64/egl/ 2>/dev/null || ls -la /mnt/t/lib64/egl/
 df -h /mnt/t | tail -1
