@@ -1,0 +1,12 @@
+#!/home/diego/dev/sm_t510_ubuntu_touch/.venv/bin/python3
+"""Run a command on the tablet over SSH: ush 'cmd' [user]. Password: 1234 (devel image)."""
+import sys, paramiko
+host, user = "10.15.19.82", (sys.argv[2] if len(sys.argv) > 2 else "root")
+c = paramiko.SSHClient()
+c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+c.connect(host, username=user, password="1234", timeout=15, allow_agent=False, look_for_keys=False)
+_, out, err = c.exec_command(sys.argv[1], timeout=120)
+sys.stdout.write(out.read().decode(errors="replace"))
+e = err.read().decode(errors="replace")
+if e: sys.stderr.write(e)
+sys.exit(out.channel.recv_exit_status())

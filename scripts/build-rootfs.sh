@@ -53,7 +53,13 @@ touch $MNT/.writable_image
 
 echo "I: devel access"
 mkdir -p $MNT/etc/ssh/sshd_config.d
-printf "PasswordAuthentication yes\nPermitRootLogin yes\n" > $MNT/etc/ssh/sshd_config.d/99-t510-devel.conf
+# sshd keeps the first value it reads; lxc-android-config ships 50-*.conf
+# with PasswordAuthentication no, so ours must sort before it.
+printf "PasswordAuthentication yes\nPermitRootLogin yes\n" > $MNT/etc/ssh/sshd_config.d/00-t510-devel.conf
+if [ -f keys/t510_ed25519.pub ]; then
+  install -d -m 700 $MNT/root/.ssh
+  install -m 600 keys/t510_ed25519.pub $MNT/root/.ssh/authorized_keys
+fi
 HASH=$(openssl passwd -6 -salt t510devel "$PASSWORD")
 sed -i "s|^root:[^:]*:|root:${HASH}:|" $MNT/etc/shadow
 HASH=$(openssl passwd -6 -salt t510phab "$PASSWORD")
