@@ -7,3 +7,9 @@ KERNEL=="vndbinder",      MODE="0666"
 KERNEL=="anbox-binder",   MODE="0666"
 KERNEL=="anbox-hwbinder", MODE="0666"
 KERNEL=="anbox-vndbinder",MODE="0666"
+
+# Exynos gralloc allocates buffers through ION inside the client process
+# (Lomiri runs as phablet/lightdm). With the kernel default 0600 root the
+# shell dies at start with "buffer allocation failed". sw_sync: GPU fences.
+KERNEL=="ion",            MODE="0666"
+KERNEL=="sw_sync",        MODE="0666"
