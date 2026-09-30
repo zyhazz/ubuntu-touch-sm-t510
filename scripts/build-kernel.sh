@@ -5,6 +5,13 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TARGETS="${*:-exynos7885-gta3xlwifi_defconfig halium.config}"
+# Audio DSP (ABOX) and amp firmware requested at ~1.4s, before any rootfs:
+# built into the kernel (CONFIG_EXTRA_FIRMWARE). Proprietary, kept out of git.
+FWSRC="$ROOT/firmware/t510/ex/img/vendor/firmware"
+mkdir -p "$ROOT/out/extra-firmware"
+for f in calliope_sram.bin calliope_dram.bin Tfa9896.cnt; do
+  cp -u "$FWSRC/$f" "$ROOT/out/extra-firmware/$f"
+done
 docker run --rm -u "$(id -u):$(id -g)" \
   -v "$ROOT:/work" -w /work/src/android_kernel_gta3xlwifi t510-build bash -c "
 set -e
