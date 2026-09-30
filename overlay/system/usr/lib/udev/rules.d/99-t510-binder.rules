@@ -1,0 +1,9 @@
+# Android binder nodes must be world-accessible, as stock ueventd.rc makes them.
+# Without this the greeter (uid lightdm) cannot reach the gralloc mapper over
+# hwbinder and lightdm restarts in a loop (lesson from the A50 port).
+KERNEL=="binder",         MODE="0666"
+KERNEL=="hwbinder",       MODE="0666"
+KERNEL=="vndbinder",      MODE="0666"
+KERNEL=="anbox-binder",   MODE="0666"
+KERNEL=="anbox-hwbinder", MODE="0666"
+KERNEL=="anbox-vndbinder",MODE="0666"

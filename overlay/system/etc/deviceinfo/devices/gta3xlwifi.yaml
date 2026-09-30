@@ -1,0 +1,15 @@
+# Samsung Galaxy Tab A 10.1 (2019) Wi-Fi, SM-T510 (gta3xlwifi)
+gta3xlwifi:
+  Names:
+    - Samsung Galaxy Tab A 10.1 (2019)
+  PrettyName: SM-T510
+  DeviceType: tablet
+  DriverType: halium
+  GridUnit: 12
+  WebkitDpr: 1.5
+  SupportedOrientations:
+    - Portrait
+    - InvertedPortrait
+    - Landscape
+    - InvertedLandscape
+  PrimaryOrientation: Landscape

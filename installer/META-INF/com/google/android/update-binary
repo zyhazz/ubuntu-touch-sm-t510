@@ -1,0 +1,11 @@
+#!/sbin/sh
+# TWRP entry point: sources install/t510-install.sh from the zip.
+OUTFD=$2
+ZIP=$3
+ui_print() { echo "ui_print $1" >>/proc/self/fd/"$OUTFD"; echo "ui_print" >>/proc/self/fd/"$OUTFD"; }
+abort()    { ui_print "!! $1"; ui_print "!! Nothing further was written."; exit 1; }
+TMP=/tmp/t510-install
+rm -rf "$TMP"; mkdir -p "$TMP" || abort "cannot create $TMP"
+unzip -o "$ZIP" install/t510-install.sh -d "$TMP" >/dev/null 2>&1 \
+    || abort "this zip is incomplete (no install/t510-install.sh)"
+. "$TMP/install/t510-install.sh"
