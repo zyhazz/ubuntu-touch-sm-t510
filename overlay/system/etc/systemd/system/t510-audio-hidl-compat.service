@@ -1,0 +1,12 @@
+[Unit]
+Description=SM-T510: 64-bit audio HAL bridge for PulseAudio
+After=lxc-android-config.service
+Requires=lxc-android-config.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/t510-audio-hidl-compat.sh
+
+[Install]
+WantedBy=multi-user.target
