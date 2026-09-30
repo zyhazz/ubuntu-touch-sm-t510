@@ -55,7 +55,8 @@ touch $MNT/.writable_image
 # 64-bit audio.hidl_compat bridge (HAL API 2.0) leaves unset (SIGBUS). The
 # API 28 module honours the HAL version. rate=48000 matches the ABOX DSP;
 # at 44.1 kHz playback had an audible hiss.
-sed -i "s#^load-module module-droid-discover .*#load-module module-droid-card-28 voice_virtual_stream=true rate=48000#" $MNT/etc/pulse/touch.pa
+sed -i "s#^load-module module-droid-discover .*#load-module module-droid-card-28 voice_virtual_stream=true rate=48000\\nset-default-sink sink.primary-out#" $MNT/etc/pulse/touch.pa
+# (sink.fast is the low-latency output; long streams underrun on it = noise)
 
 echo "I: devel access"
 mkdir -p $MNT/etc/ssh/sshd_config.d
